@@ -1,0 +1,90 @@
+=== projet-todo - Mon Sep 28 01:57:56 AM UTC 2026 ===
+
+$ docker --version
+Docker version 29.8.1, build 4a63305
+
+
+$ docker compose version
+Docker Compose version v5.5.1
+
+
+$ git log --oneline
+456c240 Added file docker-compose.yml
+9ff041c Added Spring Boot backend, Dockerfile, and container deployment
+0d84e86 Initial structure: files backend, docker, docs
+
+
+$ cat backend/Dockerfile
+# Étape 1 : Build
+FROM maven:3.9-eclipse-temurin-17 AS build
+WORKDIR /app
+COPY pom.xml .
+COPY src ./src
+RUN mvn clean package -DskipTests
+
+# Étape 2 : Exécution
+FROM eclipse-temurin:17-jre-alpine
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]
+
+
+$ cat docker-compose.yml
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: todo-database
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    image: todo-backend
+    container_name: todo-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "8080:8080"
+
+volumes:
+  db-data:
+
+
+$ docker compose ps
+NAME            IMAGE                COMMAND                  SERVICE   CREATED       STATUS                       PORTS
+todo-backend    todo-backend         "java -jar app.jar"      backend   2 hours ago   Up About an hour             0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp
+todo-database   postgres:16-alpine   "docker-entrypoint.s…"   db        2 hours ago   Up About an hour (healthy)   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+
+
+$ curl -s http://localhost:8080/api/health
+OK
+
+$ curl -s http://localhost:8080/api/tasks
+["Apprendre Docker","Configurer Spring Boot","Faire le rapport"]
+
+$ curl -s http://localhost:5000/v2/_catalog
+{"repositories":["todo-backend"]}
+
+
+$ curl -s http://localhost:5000/v2/todo-backend/tags/list
+{"name":"todo-backend","tags":["1.0"]}
+
