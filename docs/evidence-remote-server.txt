@@ -1,0 +1,35 @@
+=== remote-server - Mon Sep 28 02:13:56 AM UTC 2026 ===
+
+$ docker --version
+Docker version 29.8.1, build 4a63305
+
+
+$ docker compose version
+Docker Compose version v5.5.1
+
+
+$ docker images
+IMAGE                                 ID             DISK USAGE   CONTENT SIZE   EXTRA
+192.168.56.10:5000/todo-backend:1.0   d6608ffafba3        294MB         85.8MB   U    
+hello-world:latest                    5e2309035332       25.9kB         9.49kB   U    
+postgres:16-alpine                    721873c34ceb        420MB          117MB        
+
+
+$ docker image inspect --format '{{index .RepoDigests 0}}' 192.168.56.10:5000/todo-backend:1.0
+192.168.56.10:5000/todo-backend@sha256:d6608ffafba319151e5006045be87ddbf640f914c11670d54f7b84c907815187
+
+
+$ docker ps
+CONTAINER ID   IMAGE                                 COMMAND               CREATED          STATUS          PORTS                                         NAMES
+1984f05c8f16   192.168.56.10:5000/todo-backend:1.0   "java -jar app.jar"   55 minutes ago   Up 55 minutes   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp   backend-remote
+
+
+$ curl -s http://localhost:8080/api/health
+OK
+
+$ curl -s http://localhost:8080/api/tasks
+["Apprendre Docker","Configurer Spring Boot","Faire le rapport"]
+
+$ curl -s http://192.168.56.10:5000/v2/_catalog
+{"repositories":["todo-backend"]}
+
